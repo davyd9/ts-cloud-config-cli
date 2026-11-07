@@ -1,0 +1,40 @@
+{
+  "name": "ts-cloud-config-cli",
+  "version": "0.1.0",
+  "description": "A CLI tool to manage and validate cloud infrastructure configurations across multiple environments.",
+  "main": "dist/index.js",
+  "bin": {
+    "ts-cloud-config-cli": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/davyd9/ts-cloud-config-cli.git"
+  },
+  "keywords": [
+    "cli",
+    "typescript",
+    "iac",
+    "cloud",
+    "config",
+    "automation"
+  ],
+  "author": "Davyd Eduardo <davyd.eduardo@example.com>",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
