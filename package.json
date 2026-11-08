@@ -1,7 +1,7 @@
 {
   "name": "ts-cloud-config-cli",
   "version": "0.1.0",
-  "description": "A CLI tool to manage and validate cloud infrastructure configurations across multiple environments.",
+  "description": "A CLI tool for managing and validating cloud infrastructure configurations across multiple environments.",
   "main": "dist/index.js",
   "bin": {
     "ts-cloud-config-cli": "dist/index.js"
@@ -9,32 +9,38 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts"
+    "dev": "ts-node src/index.ts",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\""
   },
+  "keywords": [
+    "cli",
+    "cloud",
+    "config",
+    "iac",
+    "typescript",
+    "nodejs"
+  ],
+  "author": "Davyd Eduardo <davyd.eduardo@example.com>",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/davyd9/ts-cloud-config-cli.git"
   },
-  "keywords": [
-    "cli",
-    "typescript",
-    "iac",
-    "cloud",
-    "config",
-    "automation"
-  ],
-  "author": "Davyd Eduardo <davyd.eduardo@example.com>",
-  "license": "MIT",
   "dependencies": {
-    "commander": "^12.1.0",
-    "zod": "^3.23.8"
+    "chalk": "^5.3.0",
+    "commander": "^12.0.0",
+    "js-yaml": "^4.1.0",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/node": "^20.14.2",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.11.25",
+    "@typescript-eslint/eslint-plugin": "^7.1.1",
+    "@typescript-eslint/parser": "^7.1.1",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.5",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.5"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "typescript": "^5.4.2"
   }
 }

@@ -1,64 +1,41 @@
 import { Command } from 'commander';
-import { z } from 'zod';
+import { ConfigService } from '../services/config.service';
+import { logger } from '../utils/logger';
 
-// Define a schema for the command options for validation
-const ValidateCommandOptionsSchema = z.object({
-  env: z.string().min(1, { message: 'Environment must be specified.' }),
-});
+const validate = new Command('validate');
 
-interface ValidateCommandOptions {
-  env: string;
-}
+validate
+  .description('Validate a configuration file for a specific environment')
+  .argument('<file>', 'Path to the configuration file (e.g., config.yaml)')
+  .requiredOption('-e, --env <environment>', 'The environment to validate (e.g., dev, staging, prod)')
+  .action(async (filePath: string, options: { env: string }) => {
+    const { env } = options;
+    const configService = new ConfigService();
 
-/**
- * Registers the 'validate' command with the main program.
- * @param {Command} program - The commander program instance.
- */
-export function registerValidateCommand(program: Command): void {
-  program
-    .command('validate [filePath]')
-    .alias('v')
-    .description('Validate a configuration file for a specific environment.')
-    .requiredOption('-e, --env <environment>', 'Specify the environment to validate (e.g., dev, staging, prod)')
-    .action(async (filePath: string | undefined, options: ValidateCommandOptions) => {
-      try {
-        console.log('🚀 Starting validation process...');
+    try {
+      logger.info(`Starting validation for file: ${filePath} against environment: ${env}`);
 
-        // Validate command options using Zod
-        const validatedOptions = ValidateCommandOptionsSchema.parse(options);
-        const { env } = validatedOptions;
+      // 1. Load, parse, and validate the structure of the entire file
+      const fullConfig = await configService.loadFile(filePath);
+      logger.success('File parsed and schema structure is valid.');
 
-        const targetFile = filePath || `config/app.${env}.json`;
+      // 2. Select and retrieve the specific environment configuration
+      const envConfig = configService.getEnvironment(fullConfig, env);
+      logger.success(`Successfully validated and retrieved configuration for environment: '${env}'.`);
 
-        console.log(`✅ Options validated successfully.`)
-        console.log(`- Environment: ${env}`);
-        console.log(`- Target configuration file: ${targetFile}`);
+      // 3. Display the validated configuration for the user
+      logger.log('\n--- Validated Configuration ---');
+      console.log(envConfig);
+      logger.log('-----------------------------\n');
 
-        // Placeholder for the actual validation logic
-        // In a real scenario, this would involve:
-        // 1. Reading the file content from `targetFile`.
-        // 2. Parsing the content (e.g., JSON or YAML).
-        // 3. Defining a Zod schema for the expected configuration structure.
-        // 4. Validating the parsed content against the schema.
-        
-        console.log('\nSimulating configuration file validation...');
-        // Simulate a successful validation
-        await new Promise(resolve => setTimeout(resolve, 500)); 
-
-        console.log(`\n🎉 Validation of '${targetFile}' for environment '${env}' completed successfully.`);
-
-      } catch (error) {
-        console.error('❌ Validation failed!');
-        if (error instanceof z.ZodError) {
-          error.errors.forEach(err => {
-            console.error(`- [Option: ${err.path.join('.')}] ${err.message}`);
-          });
-        } else if (error instanceof Error) {
-          console.error(`- Error: ${error.message}`);
-        } else {
-          console.error('- An unknown error occurred during validation.');
-        }
-        process.exit(1);
+    } catch (error) {
+      if (error instanceof Error) {
+        logger.error(error.message);
+      } else {
+        logger.error('An unknown error occurred during validation.');
       }
-    });
-}
+      process.exit(1);
+    }
+  });
+
+export default validate;
