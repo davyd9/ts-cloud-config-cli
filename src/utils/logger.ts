@@ -1,48 +1,48 @@
 import chalk from 'chalk';
 
 /**
- * A simple logger utility for consistent, colored console output.
+ * A simple logging utility that provides color-coded console output
+ * for different message types, enhancing the readability of CLI feedback.
  */
-class Logger {
+export const logger = {
   /**
-   * Logs a standard message to the console.
+   * Logs informational messages.
    * @param message - The message to log.
    */
-  public log(message: string): void {
-    console.log(message);
-  }
-
-  /**
-   * Logs an informational message, typically in blue.
-   * @param message - The message to log.
-   */
-  public info(message: string): void {
+  info: (message: string): void => {
     console.log(chalk.blue(`[INFO] ${message}`));
-  }
+  },
 
   /**
-   * Logs a success message, typically in green.
+   * Logs success messages.
    * @param message - The message to log.
    */
-  public success(message: string): void {
+  success: (message: string): void => {
     console.log(chalk.green(`[SUCCESS] ${message}`));
-  }
+  },
 
   /**
-   * Logs a warning message, typically in yellow.
+   * Logs warning messages.
    * @param message - The message to log.
    */
-  public warn(message: string): void {
-    console.warn(chalk.yellow(`[WARN] ${message}`));
-  }
+  warn: (message: string): void => {
+    console.log(chalk.yellow(`[WARN] ${message}`));
+  },
 
   /**
-   * Logs an error message, typically in red.
+   * Logs error messages.
    * @param message - The message to log.
    */
-  public error(message: string): void {
+  error: (message: string): void => {
     console.error(chalk.red(`[ERROR] ${message}`));
-  }
-}
+  },
 
-export const logger = new Logger();
+  /**
+   * Logs a raw object to the console, typically for displaying
+   * validated configuration data.
+   * @param data - The object to log.
+   */
+  data: (data: unknown): void => {
+    console.log(chalk.cyan(JSON.stringify(data, null, 2)));
+  }
+};

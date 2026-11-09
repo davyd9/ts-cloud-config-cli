@@ -2,26 +2,35 @@ import { z } from 'zod';
 
 /**
  * Schema for a single environment's configuration.
- * Ensures that essential configuration variables are present and correctly typed.
- * This can be expanded with more specific validations (e.g., connection strings).
+ * This defines the expected structure for settings like database URLs, API keys,
+ * and feature flags.
  */
 export const environmentConfigSchema = z.object({
-  DATABASE_URL: z.string().url({ message: 'Invalid DATABASE_URL format.' }),
-  API_KEY: z.string().min(16, { message: 'API_KEY must be at least 16 characters long.' }),
-  ENABLE_FEATURE_FLAG: z.boolean().optional(),
-  LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+  database: z.object({
+    url: z.string().url({ message: 'Invalid database URL format.' }),
+    poolSize: z.number().int().positive().optional().default(10),
+  }),
+  api: z.object({
+    key: z.string().min(32, { message: 'API key must be at least 32 characters long.' }),
+    baseUrl: z.string().url({ message: 'Invalid API base URL.' }),
+  }),
+  logging: z.object({
+    level: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
+  }),
+  featureFlags: z.record(z.string(), z.boolean()).optional().default({}),
 });
 
 /**
- * Schema for the entire configuration file, which can contain multiple environments.
- * It's a record where each key is an environment name (e.g., 'dev', 'prod')
- * and the value is an object matching the `environmentConfigSchema`.
+ * Top-level schema for the entire configuration file.
+ * It expects a map of environment names (e.g., "development", "production")
+ * to their respective configuration objects, validated by `environmentConfigSchema`.
+ * It also ensures that at least one environment is defined.
  */
-export const multiEnvConfigSchema = z.record(
+export const topLevelConfigSchema = z.record(
   z.string().min(1, { message: 'Environment name cannot be empty.' }),
   environmentConfigSchema
-);
+).min(1, { message: 'Configuration file must contain at least one environment.' });
 
-// Infer TypeScript types from schemas for strong typing across the application
+// Type inference for easy use in other parts of the application
 export type EnvironmentConfig = z.infer<typeof environmentConfigSchema>;
-export type MultiEnvConfig = z.infer<typeof multiEnvConfigSchema>;
+export type TopLevelConfig = z.infer<typeof topLevelConfigSchema>;
