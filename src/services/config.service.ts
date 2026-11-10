@@ -1,96 +1,85 @@
-import { promises as fs } from 'fs';
+import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
-import { ZodError } from 'zod';
-import { topLevelConfigSchema, TopLevelConfig } from '../schemas/config.schema';
+import { z, ZodError } from 'zod';
+import { configSchema, environmentSchema } from '../schemas/config.schema';
+import { AppError } from '../errors/AppError';
 
-/**
- * A service class to handle the loading, parsing, and validation of configuration files.
- * It supports both JSON and YAML formats and uses Zod for robust schema validation.
- * This decouples file I/O and validation logic from the command implementations.
- */
-class ConfigService {
+export class ConfigService {
+  private readonly configSchema = configSchema;
+
   /**
-   * Loads a configuration file from the given path, parses it based on its extension,
-   * and validates its content against the defined Zod schema.
-   *
-   * @param filePath - The relative or absolute path to the configuration file.
-   * @returns A promise that resolves with the validated configuration object.
-   * @throws An error if the file does not exist, is unreadable, or fails validation.
+   * Formats a ZodError into a user-friendly, readable string.
+   * @param {ZodError} error - The ZodError instance.
+   * @returns {string} A formatted error message.
    */
-  public async loadAndValidate(filePath: string): Promise<TopLevelConfig> {
+  private _formatZodError(error: ZodError): string {
+    const issues = error.issues.map(issue => {
+      const pathString = issue.path.join('.');
+      return `  - At path '${pathString}': ${issue.message}.`;
+    });
+    return `Configuration validation failed with the following issues:
+${issues.join('\n')}`;
+  }
+
+  /**
+   * Loads, parses, and validates a configuration file.
+   * @param {string} filePath - The path to the configuration file.
+   * @returns {z.infer<typeof this.configSchema>} The validated configuration object.
+   * @throws {AppError} If the file is not found, cannot be parsed, or fails validation.
+   */
+  public loadAndValidate(filePath: string): z.infer<typeof this.configSchema> {
     const absolutePath = path.resolve(filePath);
-    const fileContent = await this.readFile(absolutePath);
-    const parsedContent = this.parseContent(fileContent, absolutePath);
-    return this.validateSchema(parsedContent);
-  }
+    let fileContent: string;
 
-  /**
-   * Reads the content of a file.
-   * @param filePath - The absolute path to the file.
-   * @returns The file content as a string.
-   * @throws An error if the file cannot be read.
-   */
-  private async readFile(filePath: string): Promise<string> {
     try {
-      return await fs.readFile(filePath, 'utf-8');
-    } catch (error) {
-      throw new Error(`Failed to read configuration file at: ${filePath}`);
+      fileContent = fs.readFileSync(absolutePath, 'utf8');
+    } catch (error: any) {
+      if (error.code === 'ENOENT') {
+        throw new AppError(`Configuration file not found at: ${absolutePath}\nPlease check the path and try again.`);
+      }
+      throw new AppError(`Failed to read file at: ${absolutePath}. Reason: ${error.message}`);
     }
-  }
 
-  /**
-   * Parses the file content based on its extension.
-   * @param content - The file content as a string.
-   * @param filePath - The path to the file, used to determine the file type.
-   * @returns The parsed content as a JavaScript object.
-   * @throws An error if the file format is unsupported or parsing fails.
-   */
-  private parseContent(content: string, filePath: string): unknown {
-    const extension = path.extname(filePath).toLowerCase();
+    let data: unknown;
     try {
-      if (extension === '.json') {
-        return JSON.parse(content);
+      // js-yaml can also parse JSON, so we can use it as a universal parser.
+      data = yaml.load(fileContent);
+      if (data === null || typeof data !== 'object') {
+        throw new AppError(`The configuration file at ${absolutePath} is empty or not a valid object.`);
       }
-      if (extension === '.yaml' || extension === '.yml') {
-        return yaml.load(content);
+    } catch (error: any) {
+      throw new AppError(`Failed to parse configuration file at: ${absolutePath}. Please check for YAML/JSON syntax errors.\nDetails: ${error.message}`);
+    }
+
+    try {
+      return this.configSchema.parse(data);
+    } catch (error: unknown) {
+      if (error instanceof ZodError) {
+        const formattedMessage = this._formatZodError(error);
+        throw new AppError(formattedMessage);
       }
-      throw new Error(`Unsupported file format: ${extension}. Please use .json, .yaml, or .yml.`);
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(`Failed to parse ${filePath}: ${error.message}`);
-      }
-      throw new Error(`An unknown error occurred while parsing ${filePath}.`);
+      // Re-throw unexpected errors during parsing
+      throw error;
     }
   }
 
   /**
-   * Validates the parsed content against the top-level configuration schema.
-   * @param data - The parsed data to validate.
-   * @returns The validated data, conforming to the TopLevelConfig type.
-   * @throws A formatted error message if validation fails.
+   * Retrieves the configuration for a specific environment.
+   * @param {z.infer<typeof this.configSchema>} config - The full, validated configuration object.
+   * @param {string} environment - The name of the target environment (e.g., 'dev', 'prod').
+   * @returns {z.infer<typeof environmentSchema>} The configuration for the specified environment.
+   * @throws {AppError} If the specified environment is not defined in the configuration file.
    */
-  private validateSchema(data: unknown): TopLevelConfig {
-    const validationResult = topLevelConfigSchema.safeParse(data);
-
-    if (!validationResult.success) {
-      const formattedError = this.formatZodError(validationResult.error);
-      throw new Error(`Configuration validation failed:\n${formattedError}`);
+  public getEnvironmentConfig(
+    config: z.infer<typeof this.configSchema>,
+    environment: string
+  ): z.infer<typeof environmentSchema> {
+    const envConfig = config[environment];
+    if (!envConfig) {
+      const availableEnvs = Object.keys(config).join(', ');
+      throw new AppError(`Environment '${environment}' not found in the configuration file.\nAvailable environments: ${availableEnvs}`);
     }
-
-    return validationResult.data;
-  }
-
-  /**
-   * Formats a ZodError into a readable string.
-   * @param error - The ZodError instance.
-   * @returns A string detailing the validation issues.
-   */
-  private formatZodError(error: ZodError): string {
-    return error.issues
-      .map(issue => `  - Path: [${issue.path.join('.') || 'root'}], Issue: ${issue.message}`)
-      .join('\n');
+    return envConfig;
   }
 }
-
-export const configService = new ConfigService();
